@@ -8,6 +8,7 @@ from xdist.scheduler import (
     LoadScopeScheduling,
     LoadFileScheduling,
     LoadGroupScheduling,
+    IsolateFileScheduling,
 )
 
 
@@ -100,6 +101,7 @@ class DSession:
             "loadscope": LoadScopeScheduling,
             "loadfile": LoadFileScheduling,
             "loadgroup": LoadGroupScheduling,
+            "isolatefile": IsolateFileScheduling,
         }
         return schedulers[dist](config, log)
 
@@ -205,6 +207,12 @@ class DSession:
         else:
             if crashitem:
                 self.handle_crashitem(crashitem, node)
+
+        if error == "worker-restart":
+            self.log("replacing finished worker %s" % node.gateway.id)
+            self.shuttingdown = False
+            self._clone_node(node)
+            return
 
         self._failed_nodes_count += 1
         maximum_reached = (
