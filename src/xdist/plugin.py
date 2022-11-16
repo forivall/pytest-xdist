@@ -190,7 +190,7 @@ def pytest_addhooks(pluginmanager):
 
 
 @pytest.hookimpl(trylast=True)
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config):
     if config.getoption("dist") != "no" and not config.getvalue("collectonly"):
         from xdist.dsession import DSession
 

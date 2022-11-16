@@ -1,5 +1,10 @@
 import pytest
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from execnet.gateway import Gateway
+
 from xdist.remote import Producer
 from xdist.workermanage import NodeManager
 from xdist.scheduler import (
@@ -95,7 +100,7 @@ class DSession:
     @pytest.hookimpl(trylast=True)
     def pytest_xdist_make_scheduler(self, config, log):
         dist = config.getvalue("dist")
-        schedulers = {
+        schedulers: 'dict[str, type[EachScheduling | LoadScheduling | LoadScopeScheduling]]' = {
             "each": EachScheduling,
             "load": LoadScheduling,
             "loadscope": LoadScopeScheduling,
@@ -107,7 +112,7 @@ class DSession:
 
     @pytest.hookimpl
     def pytest_runtestloop(self):
-        self.sched = self.config.hook.pytest_xdist_make_scheduler(
+        self.sched: 'EachScheduling | LoadScheduling | LoadScopeScheduling' = self.config.hook.pytest_xdist_make_scheduler(
             config=self.config, log=self.log
         )
         assert self.sched is not None
@@ -412,7 +417,7 @@ class TerminalDistReporter:
         self.ensure_show_status()
 
     @pytest.hookimpl
-    def pytest_xdist_newgateway(self, gateway):
+    def pytest_xdist_newgateway(self, gateway: 'Gateway'):
         if self.config.option.verbose > 0:
             rinfo = gateway._rinfo()
             version = "%s.%s.%s" % rinfo.version_info[:3]

@@ -9,6 +9,12 @@ from typing import List, Union, Sequence, Optional, Any, Tuple, Set
 import pytest
 import execnet
 
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from execnet.gateway import Gateway
+    from execnet.xspec import XSpec
+
 import xdist.remote
 from xdist.remote import Producer
 from xdist.plugin import _sys_path
@@ -56,18 +62,18 @@ class NodeManager:
         self.rsyncoptions = self._getrsyncoptions()
         self._rsynced_specs: Set[Tuple[Any, Any]] = set()
 
-    def rsync_roots(self, gateway):
+    def rsync_roots(self, gateway: 'Gateway'):
         """Rsync the set of roots to the node's gateway cwd."""
         if self.roots:
             for root in self.roots:
                 self.rsync(gateway, root, **self.rsyncoptions)
 
-    def setup_nodes(self, putevent):
+    def setup_nodes(self, putevent: 'Callable[[Tuple[str, dict]]]'):
         self.config.hook.pytest_xdist_setupnodes(config=self.config, specs=self.specs)
         self.trace("setting up nodes")
         return [self.setup_node(spec, putevent) for spec in self.specs]
 
-    def setup_node(self, spec, putevent):
+    def setup_node(self, spec: 'XSpec', putevent: 'Callable[[Tuple[str, dict]]]'):
         gw = self.group.makegateway(spec)
         self.config.hook.pytest_xdist_newgateway(gateway=gw)
         self.rsync_roots(gw)
@@ -128,13 +134,13 @@ class NodeManager:
             "verbose": getattr(self.config.option, "verbose", 0),
         }
 
-    def rsync(self, gateway, source, notify=None, verbose=False, ignores=None):
+    def rsync(self, gateway: 'Gateway', source, notify=None, verbose=False, ignores=None):
         """Perform rsync to remote hosts for node."""
         # XXX This changes the calling behaviour of
         #     pytest_xdist_rsyncstart and pytest_xdist_rsyncfinish to
         #     be called once per rsync target.
         rsync = HostRSync(source, verbose=verbose, ignores=ignores)
-        spec = gateway.spec
+        spec: 'XSpec' = gateway.spec
         if spec.popen and not spec.chdir:
             # XXX This assumes that sources are python-packages
             #     and that adding the basedir does not hurt.
@@ -232,7 +238,13 @@ class WorkerController:
         def pytest_xdist_getremotemodule(self):
             return xdist.remote
 
-    def __init__(self, nodemanager, gateway, config, putevent):
+    def __init__(
+        self,
+        nodemanager: 'NodeManager',
+        gateway: 'Gateway',
+        config: 'pytest.Config',
+        putevent: 'Callable[[Tuple[str, dict]]]'
+    ):
         config.pluginmanager.register(self.RemoteHook())
         self.nodemanager = nodemanager
         self.putevent = putevent
@@ -273,7 +285,7 @@ class WorkerController:
                 option_dict["basetemp"] = str(basetemp / name)
         self.config.hook.pytest_configure_node(node=self)
 
-        remote_module = self.config.hook.pytest_xdist_getremotemodule()
+        remote_module: 'Module' = self.config.hook.pytest_xdist_getremotemodule()
         self.channel = self.gateway.remote_exec(remote_module)
         # change sys.path only for remote workers
         # restore sys.path from a frozen copy for local workers
